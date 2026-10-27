@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title id="pageTitle">PWA Shortcut Maker</title>
+  
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- PWA / 全画面表示メタタグ -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <link id="dynamicAppleIcon" rel="apple-touch-icon" href="">
+  <link id="dynamicManifest" rel="manifest" href="">
+
+  <style>
+    body, html {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background-color: #0f172a; color: #f8fafc;
+    }
+    iframe {
+      width: 100%; height: 100%; border: none; outline: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <script>
+    // --- 1. URLパラメータの取得処理 ---
+    const params = new URLSearchParams(window.location.search);
+    const targetUrl = params.get('url');
+    const titleParam = params.get('title') || 'Web App';
+    const iconParam = params.get('icon');
+    const modeParam = params.get('mode') || 'iframe'; // iframe または redirect
+
+    // Web Application Manifest (動的生成)
+    function setupPWA(title, iconUrl) {
+      document.getElementById('pageTitle').innerText = title;
+      
+      const manifest = {
+        name: title,
+        short_name: title,
+        start_url: window.location.href,
+        display: "standalone",
+        background_color: "#0f172a",
+        theme_color: "#0f172a",
+        icons: [
+          {
+            src: iconUrl || "https://via.placeholder.com/512/4f46e5/ffffff?text=APP",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable"
+          }
+        ]
+      };
+
+      // manifest と apple-touch-icon を動的に書き換え
+      const stringManifest = JSON.stringify(manifest);
+      const blob = new Blob([stringManifest], {type: 'application/json'});
+      const manifestUrl = URL.createObjectURL(blob);
+      document.getElementById('dynamicManifest').setAttribute('href', manifestUrl);
+
+      if (iconUrl) {
+        document.getElementById('dynamicAppleIcon').setAttribute('href', iconUrl);
+      }
+    }
+
+    // --- 2. パラメータ（url）が存在する場合：ランチャー動作（自動飛ぶモード） ---
+    if (targetUrl) {
+      setupPWA(titleParam, iconParam);
+
+      // 画面全体を開きたいサイトに切り替え
+      window.addEventListener('DOMContentLoaded', () => {
+        if (modeParam === 'redirect') {
+          // リダイレクトモード（外部ブラウザで開く/直接移動）
+          window.location.href = targetUrl;
+        } else {
+          // iframeモード（URLバーなし全画面で埋め込み表示）
+          document.body.innerHTML = `
+            <iframe src="${targetUrl}" allow="geolocation; microphone; camera; encrypted-media"></iframe>
+          `;
+        }
+      });
+    }
+  </script>
+
+  <!-- --- 3. パラメータがない場合：設定画面を表示 --- -->
+  <div id="generatorUI" class="max-w-2xl mx-auto my-auto p-6 w-full">
+    <header class="text-center mb-8">
+      <h1 class="text-2xl font-bold flex items-center justify-center gap-2 text-indigo-400">
+        <i data-lucide="smartphone"></i> PWA Shortcut Launcher
+      </h1>
+      <p class="text-slate-400 text-sm mt-2">
+        ホーム画面に置く「アイコン・名前・URL」を設定した自分専用のショートカットリンクを作成します。
+      </p>
+    </header>
+
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl space-y-5">
+      <!-- 飛ばしたいURL -->
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-1">1. 開きたい Web サイトの URL</label>
+        <input type="url" id="inputUrl" placeholder="https://example.com" value="https://example.com"
+          class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+
+      <!-- アプリ名 -->
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-1">2. ホーム画面での表示名（アプリ名）</label>
+        <input type="text" id="inputTitle" placeholder="マイアプリ" value="マイアプリ"
+          class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+
+      <!-- アイコン画像URL -->
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-1">3. アイコン画像の URL</label>
+        <input type="url" id="inputIcon" placeholder="https://example.com/icon.png"
+          class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+        <p class="text-xs text-slate-500 mt-1">※空欄の場合は自動生成のデフォルトアイコンになります。</p>
+      </div>
+
+      <!-- 表示モード -->
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">4. 開き方のモード</label>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <label class="flex items-start gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-700 cursor-pointer">
+            <input type="radio" name="inputMode" value="iframe" checked class="mt-1 accent-indigo-500">
+            <div>
+              <span class="font-medium text-slate-200 block">枠なし全画面 (推奨)</span>
+              <span class="text-xs text-slate-400">アドレスバーを消して単一アプリ風に起動</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-700 cursor-pointer">
+            <input type="radio" name="inputMode" value="redirect" class="mt-1 accent-indigo-500">
+            <div>
+              <span class="font-medium text-slate-200 block">高速リダイレクト</span>
+              <span class="text-xs text-slate-400">直接そのサイトのURLへジャンプ</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- 生成ボタン -->
+      <button id="generateBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2">
+        <i data-lucide="link"></i> ショートカット用 URL を生成する
+      </button>
+    </div>
+
+    <!-- 結果エリア -->
+    <div id="resultBox" class="hidden mt-6 bg-slate-800 border border-indigo-500/50 rounded-2xl p-6 shadow-xl space-y-4">
+      <h3 class="text-sm font-semibold text-indigo-300 flex items-center gap-2">
+        <i data-lucide="check-circle-2"></i> 生成完了！以下の手順でホーム画面に追加してください
+      </h3>
+
+      <div class="bg-slate-950 p-3 rounded-lg flex items-center justify-between gap-2 border border-slate-800">
+        <span id="generatedUrlText" class="text-xs text-indigo-200 truncate flex-1 font-mono"></span>
+        <button id="openUrlBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1 shrink-0">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 開く
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-300 space-y-2 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+        <p class="font-medium text-slate-100">📱 スマホでのショートカット作成手順：</p>
+        <ol class="list-decimal list-inside space-y-1 text-slate-400">
+          <li>上記の<strong class="text-slate-200">「開く」</strong>ボタンを押して生成されたページに移動します。</li>
+          <li>移動先のページで、ブラウザの共有メニューから<strong class="text-slate-200">「ホーム画面に追加」</strong>を選択します。</li>
+          <li>設定したアイコンと名前が反映されているのを確認して「追加」を押します。</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // UI要素
+    const inputUrl = document.getElementById('inputUrl');
+    const inputTitle = document.getElementById('inputTitle');
+    const inputIcon = document.getElementById('inputIcon');
+    const generateBtn = document.getElementById('generateBtn');
+    const resultBox = document.getElementById('resultBox');
+    const generatedUrlText = document.getElementById('generatedUrlText');
+    const openUrlBtn = document.getElementById('openUrlBtn');
+
+    // 生成処理
+    generateBtn.addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      const title = inputTitle.value.trim() || 'My App';
+      const icon = inputIcon.value.trim();
+      const mode = document.querySelector('input[name="inputMode"]:checked').value;
+
+      if (!url) {
+        alert('URLを入力してください');
+        return;
+      }
+
+      // ベースURLの取得
+      const baseUrl = window.location.origin + window.location.pathname;
+      
+      // パラメータ付きURLの構築
+      const finalUrl = new URL(baseUrl);
+      finalUrl.searchParams.set('url', url);
+      finalUrl.searchParams.set('title', title);
+      if (icon) finalUrl.searchParams.set('icon', icon);
+      finalUrl.searchParams.set('mode', mode);
+
+      generatedUrlText.textContent = finalUrl.toString();
+      resultBox.classList.remove('hidden');
+
+      openUrlBtn.onclick = () => {
+        window.location.href = finalUrl.toString();
+      };
+    });
+  </script>
+</body>
+</html>
